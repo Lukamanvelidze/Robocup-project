@@ -18,7 +18,7 @@ The robot will detect when a human responds with the word **"Polo"**, determine 
 
 ###  Speech Recognition
 - **Goal**: Detect the keyword **"Polo"**.
-- **Description**: Leverages NAO’s speech recognition capabilities to trigger behavior once the keyword is detected.
+- **Description**: uses OpenAI whisper on local device  to trigger behavior once the keyword is detected.
 
 ###  Target Approach
 - **Goal**: Move the robot toward the sound source.
@@ -26,7 +26,7 @@ The robot will detect when a human responds with the word **"Polo"**, determine 
 
 ###  Computer Vision
 - **Goal**: Identify the target using colored tape.
-- **Description**: Uses NAO's camera and computer vision (e.g., OpenCV) to detect the color-marked target and perform a pointing gesture.
+- **Description**: Uses NAO's camera and computer vision (e.g., OpenCV) to detect the color-marked target and perform a pointing gesture(working version).
 
 ---
 
@@ -34,6 +34,7 @@ The robot will detect when a human responds with the word **"Polo"**, determine 
 
 - Naoqi
 - openCV
+- whisper
 - will add more later
 
 
