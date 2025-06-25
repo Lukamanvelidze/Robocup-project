@@ -1,39 +1,31 @@
-#  NAO Plays Marco Polo
+=Audio Processing + Whisper Speech Recognition
 
-This project aims to make the NAO humanoid robot play the game **Marco Polo** in the **"Marco" role**.
-
----
-
-## Project Overview
-
-The robot will detect when a human responds with the word **"Polo"**, determine the direction of the sound, move toward the target, and finally recognize a colored tape using computer vision to confirm the target's location and point at it.
+ captures microphone audio from the NAO robot, processes it using [OpenAI's Whisper](https://github.com/openai/whisper) speech-to-text model, and returns a list of recognized words.
 
 ---
 
-##  Components
+##  Overview
 
-###  Sound Localization
-- **Goal**: Estimate the direction of incoming sound.
-- **Description**: Uses NAO's microphone array to identify where the "Polo" response is coming from.
-
-###  Speech Recognition
-- **Goal**: Detect the keyword **"Polo"**.
-- **Description**: Leverages NAO’s speech recognition capabilities to trigger behavior once the keyword is detected.
-
-###  Target Approach
-- **Goal**: Move the robot toward the sound source.
-- **Description**: Uses basic motion control to approach the estimated direction of the sound.
-
-###  Computer Vision
-- **Goal**: Identify the target using colored tape.
-- **Description**: Uses NAO's camera and computer vision (e.g., OpenCV) to detect the color-marked target and perform a pointing gesture.
+- Captures live audio from the **front microphone** of the NAO robot using `ALAudioDevice`.
+- Buffers a short audio segment (default: 50 frames).
+- Saves the audio as a WAV file.
+- Transcribes the audio using Whisper (`base` model by default).
+- Outputs the result as a list of words.
 
 ---
 
-##  Technologies Used
+##  Prerequisites
 
-- Naoqi
-- openCV
-- will add more later
+1. **Python+** 
+2. **OpenAI Whisper** or [`faster-whisper`](https://github.com/guillaumekln/faster-whisper) for better performance
+3. **NAOqi SDK** installed and configured
+4. Access to a **NAO robot** or emulator with a running `naoqi` instance
 
+---
 
+## 🛠️ Installation
+
+Clone the repo (or copy the file) and set up the environment:
+
+```bash
+pip install numpy openai-whisper
