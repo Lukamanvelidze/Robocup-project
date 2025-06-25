@@ -1,4 +1,4 @@
-=Audio Processing + Whisper Speech Recognition
+## audio Processing + Whisper Speech Recognition
 
  captures microphone audio from the NAO robot, processes it using [OpenAI's Whisper](https://github.com/openai/whisper) speech-to-text model, and returns a list of recognized words.
 
