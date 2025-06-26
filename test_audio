@@ -1,95 +1,75 @@
 import qi
-import argparse
 import sys
 import time
-import numpy as np
 import wave
-import os
 import tempfile
 import platform
+import winsound  # Windows only; for playback
 
-
-class SoundProcessingClient(object):
+class NAOSoundRecorder:
     def __init__(self, app):
         app.start()
         self.session = app.session
         self.audio_service = self.session.service("ALAudioDevice")
-        self.module_name = "SoundProcessingClient"
+        self.module_name = "NAOSoundRecorder"
 
         self.audio_rate = 16000
-        self.framesCount = 0
-        self.nbOfFramesToProcess = 200  # ~1.25s of audio
-
+        self.frames_to_collect = 200  # Number of frames to collect (~1.25s)
+        self.frames_collected = 0
         self.collected_samples = []
 
-        # ✅ Register the processRemote callback with the session
+        # Register this instance as a service with NAOqi so callbacks are received
         self.session.registerService(self.module_name, self)
 
-    def startProcessing(self):
-        # ✅ 1 channel, 16-bit, little endian, 16000 Hz
+    def start(self):
+        # Set client preferences: 1 channel, 16-bit, 16000Hz
         self.audio_service.setClientPreferences(self.module_name, self.audio_rate, 1, 0)
         self.audio_service.subscribe(self.module_name)
 
-        print("Subscribed. Waiting to collect audio...")
+        print("Subscribed, recording audio...")
 
-        while self.framesCount < self.nbOfFramesToProcess:
+        while self.frames_collected < self.frames_to_collect:
             time.sleep(0.1)
 
         self.audio_service.unsubscribe(self.module_name)
-        print("Unsubscribed. Saving audio...")
+        print("Unsubscribed, saving audio...")
 
-        wav_file = self.write_wav_file(self.collected_samples)
-        self.play_wav_file(wav_file)
+        wav_path = self.save_wav()
+        self.play_wav(wav_path)
 
     def processRemote(self, nbOfChannels, nbOfSamplesByChannel, timeStamp, inputBuffer):
-        print(f"processRemote called: frame {self.framesCount}")
+        print(f"Received audio frame {self.frames_collected + 1}")
+        if self.frames_collected < self.frames_to_collect:
+            self.frames_collected += 1
+            # inputBuffer is raw bytes of PCM samples
+            self.collected_samples.append(inputBuffer)
 
-        if self.framesCount < self.nbOfFramesToProcess:
-            self.framesCount += 1
-
-            # Parse input buffer
-            samples = np.frombuffer(inputBuffer, dtype=np.int16)
-
-            # Use channel 0 if multichannel
-            if nbOfChannels > 1:
-                samples = samples[::nbOfChannels]
-
-            self.collected_samples.append(samples.tobytes())
-
-    def write_wav_file(self, raw_buffers):
-        tmpfile = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-        with wave.open(tmpfile.name, 'wb') as wf:
-            wf.setnchannels(1)         # Mono
-            wf.setsampwidth(2)         # 16-bit
+    def save_wav(self):
+        tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+        with wave.open(tmp_file.name, 'wb') as wf:
+            wf.setnchannels(1)             # Mono audio
+            wf.setsampwidth(2)             # 16-bit samples
             wf.setframerate(self.audio_rate)
-            wf.writeframes(b''.join(raw_buffers))
-        return tmpfile.name
+            wf.writeframes(b''.join(self.collected_samples))
+        print(f"Audio saved to {tmp_file.name}")
+        return tmp_file.name
 
-    def play_wav_file(self, wav_path):
-        system = platform.system()
-        if system == "Darwin":  # macOS
-            os.system(f"afplay '{wav_path}'")
-        elif system == "Linux":
-            os.system(f"aplay '{wav_path}'")
-        elif system == "Windows":
-            os.system(f"start /min wmplayer '{wav_path.replace('/', '\\')}'")
+    def play_wav(self, path):
+        if platform.system() == "Windows":
+            print("Playing audio via winsound...")
+            winsound.PlaySound(path, winsound.SND_FILENAME)
         else:
-            print("Unsupported OS: cannot auto-play audio")
-
+            print("Audio playback not supported on this OS in this example.")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--ip", type=str, default="127.0.0.1", help="NAOqi IP")
-    parser.add_argument("--port", type=int, default=9559, help="NAOqi Port")
-    args = parser.parse_args()
+    ip = "127.0.0.1"   # Change to your NAO IP
+    port = 9559
 
     try:
-        connection_url = "tcp://" + args.ip + ":" + str(args.port)
-        app = qi.Application(["SoundProcessingClient", "--qi-url=" + connection_url])
+        app = qi.Application(["NAOSoundRecorder", f"--qi-url=tcp://{ip}:{port}"])
     except RuntimeError:
-        print("Can't connect to Naoqi.")
+        print("Can't connect to NAOqi.")
         sys.exit(1)
 
-    # ✅ Register the service before running
-    module = SoundProcessingClient(app)
-    module.startProcessing()
+    recorder = NAOSoundRecorder(app)
+    recorder.start()
