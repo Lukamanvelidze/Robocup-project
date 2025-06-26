@@ -8,6 +8,7 @@ import os
 import tempfile
 import platform
 
+
 class SoundProcessingClient(object):
     def __init__(self, app):
         app.start()
@@ -21,23 +22,39 @@ class SoundProcessingClient(object):
 
         self.collected_samples = []
 
+        # ✅ Register the processRemote callback with the session
+        self.session.registerService(self.module_name, self)
+
     def startProcessing(self):
-        self.audio_service.setClientPreferences(self.module_name, self.audio_rate, 3, 0)
+        # ✅ 1 channel, 16-bit, little endian, 16000 Hz
+        self.audio_service.setClientPreferences(self.module_name, self.audio_rate, 1, 0)
         self.audio_service.subscribe(self.module_name)
+
+        print("Subscribed. Waiting to collect audio...")
 
         while self.framesCount < self.nbOfFramesToProcess:
             time.sleep(0.1)
 
         self.audio_service.unsubscribe(self.module_name)
+        print("Unsubscribed. Saving audio...")
 
-        # Save and play
         wav_file = self.write_wav_file(self.collected_samples)
         self.play_wav_file(wav_file)
 
     def processRemote(self, nbOfChannels, nbOfSamplesByChannel, timeStamp, inputBuffer):
+        print(f"processRemote called: frame {self.framesCount}")
+
         if self.framesCount < self.nbOfFramesToProcess:
             self.framesCount += 1
-            self.collected_samples.append(inputBuffer)
+
+            # Parse input buffer
+            samples = np.frombuffer(inputBuffer, dtype=np.int16)
+
+            # Use channel 0 if multichannel
+            if nbOfChannels > 1:
+                samples = samples[::nbOfChannels]
+
+            self.collected_samples.append(samples.tobytes())
 
     def write_wav_file(self, raw_buffers):
         tmpfile = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
@@ -45,19 +62,20 @@ class SoundProcessingClient(object):
             wf.setnchannels(1)         # Mono
             wf.setsampwidth(2)         # 16-bit
             wf.setframerate(self.audio_rate)
-            wf.writeframes(b''.join(raw_buffers))  # Concatenate all buffers
+            wf.writeframes(b''.join(raw_buffers))
         return tmpfile.name
 
     def play_wav_file(self, wav_path):
         system = platform.system()
         if system == "Darwin":  # macOS
-            os.system("afplay '{}'".format(wav_path))
+            os.system(f"afplay '{wav_path}'")
         elif system == "Linux":
-            os.system("aplay '{}'".format(wav_path))
+            os.system(f"aplay '{wav_path}'")
         elif system == "Windows":
-            os.system("start /min wmplayer '{}'".format(wav_path.replace("/", "\\")))
+            os.system(f"start /min wmplayer '{wav_path.replace('/', '\\')}'")
         else:
             print("Unsupported OS: cannot auto-play audio")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -72,6 +90,6 @@ if __name__ == "__main__":
         print("Can't connect to Naoqi.")
         sys.exit(1)
 
+    # ✅ Register the service before running
     module = SoundProcessingClient(app)
-    app.session.registerService("SoundProcessingClient", module)
     module.startProcessing()
