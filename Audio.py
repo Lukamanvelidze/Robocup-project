@@ -40,7 +40,17 @@ class SoundProcessingModule(object):
         # ask for the front microphone signal sampled at 16kHz
         # if you want the 4 channels call setClientPreferences(self.module_name, 48000, 0, 0)
         self.audio_service.setClientPreferences(self.module_name, 48000, 0, 0)
+
+        # chatgbt says 1 is all 4 and 0 is just 1 channel
+        #self.audio_service.setClientPreferences(self.module_name, 48000, 1, 0)
+
+
         self.audio_service.subscribe(self.module_name)
+
+        # test if all 4 mic are even activated (should look like this ['FrontLeft', 'FrontRight', 'RearLeft', 'RearRight'] )
+        self.audio_service.getMicrophones()         
+        self.audio_service.getOutputVolume()
+
 
         while self.isProcessingDone == False:
             time.sleep(1)
@@ -58,26 +68,52 @@ class SoundProcessingModule(object):
             audioData = self.convertStr2SignedInt(inputBuffer)
 
             # Split in einzelne Kanäle
-            micFront = audioData[0::4]
-            micRear = audioData[1::4]
-            micLeft = audioData[2::4]
-            micRight = audioData[3::4]
+            micLeft  = audioData[0::4]
+            micRight = audioData[1::4]
+            micFront = audioData[2::4]
+            micRear  = audioData[3::4]
 
-            # RMS pro Kanal
-            print("Frame %d:" % self.framesCount)
-            print("  Left RMS: %.2f dB" % self.calcRMSLevel(micFront))
-            print("  Right  RMS: %.2f dB" % self.calcRMSLevel(micRear))
-            print("  Rear  RMS: %.2f dB" % self.calcRMSLevel(micLeft)) #not working
-            print("  Front RMS: %.2f dB" % self.calcRMSLevel(micRight)) #not working
+            # using timestamp to check the audio latency (time between him hearing something to calc and output of that rms)
+            captureTime = timeStamp[0] + timeStamp[1] / 1e6
+            currentTime = time.time()
+            latency = currentTime - captureTime
+            print("Audio-latency: %.3f seconds" % latency)
+
+            # to see how many channels are used
+            print("Channels:", nbOfChannels)
+            print("Samples per channel:", nbOfSamplesByChannel)
+            print("InputBuffer lenght:", len(inputBuffer))
+
+            # RMS in db per channel
+            print("  Left  RMS: %.2f dB" % self.calcRMSLevel(micLeft))
+            print("  Right RMS: %.2f dB" % self.calcRMSLevel(micRight))
+            print("  Front RMS: %.2f dB" % self.calcRMSLevel(micFront)) # somehow not working
+            print("  Rear  RMS: %.2f dB" % self.calcRMSLevel(micRear))  # somehow not working
+
+            # RMS linear per channel
+            print("  Left  RMS: %.2f dB" % self.calcLinearRMS(micLeft))
+            print("  Right RMS: %.2f dB" % self.calcLinearRMS(micRight))
+            print("  Front RMS: %.2f dB" % self.calcLinearRMS(micFront)) # somehow not working
+            print("  Rear  RMS: %.2f dB" % self.calcLinearRMS(micRear))  # somehow not working
+
+            # testing if there is even raw inout in mic (raw input no rms calc)
+            print("  Front Raw Max: %.4f" % max(np.abs(micLeft)))
+            print("  Front Raw Max: %.4f" % max(np.abs(micRight)))
+            print("  Front Raw Max: %.4f" % max(np.abs(micFront)))
+            print("  Front Raw Max: %.4f" % max(np.abs(micRear)))
+
         else:
             self.isProcessingDone = True
 
-    def calcRMSLevel(self,data) :
-        """
-        Calculate RMS level
-        """
-        rms = 20 * np.log10( np.sqrt( np.sum( np.power(data,2) / len(data)  )))
-        return rms
+    def calcRMSLevel(self, data):
+        rms = np.sqrt(np.mean(np.square(data)))
+        if rms < 1e-10:    # just in case that its so quiet that the calc log(0) is not possible
+            return -100.0  # very quiet
+        return 20 * np.log10(rms)
+    
+    # calc linear rms (not in db)
+    def calcLinearRMS(self, data):
+        return np.sqrt(np.mean(np.square(data)))
 
     def convertStr2SignedInt(self, data) :
         """
