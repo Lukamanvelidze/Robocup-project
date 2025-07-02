@@ -130,7 +130,7 @@ class SoundProcessingModule(object):
             # Gesamtwinkel (z. B. für Richtung in 2D)
             gesamtwinkel = math.degrees(math.atan2(y, x))
 
-            print(f"sound source is coming at a {gesamtwinkel:.1f}° angle from NAO (0/360 is right, 180 is left, 90 is front, 270 is rear)")
+            print(f"sound source is coming at a {gesamtwinkel:.1f} degree angle from NAO (0/360 is right, 180 is left, 90 is front, 270 is rear)")
 
         else:
             self.isProcessingDone = True
