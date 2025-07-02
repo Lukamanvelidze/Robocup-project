@@ -8,6 +8,7 @@ import argparse
 import sys
 import time
 import numpy as np
+import math
 
 
 class SoundProcessingModule(object):
@@ -32,6 +33,13 @@ class SoundProcessingModule(object):
         self.micFront = []
         self.module_name = "SoundProcessingModule"
         self.micRear = []
+
+        self.mic_positions = {
+            "Front":  (0.041, 0.0, 0.0915),
+            "Rear":   (-0.0577, 0.0, 0.0693),
+            "Left":   (-0.0195, 0.0606, 0.0331),
+            "Right":  (-0.0195, -0.0606, 0.0331)
+        }
 
     def startProcessing(self):
         """
@@ -102,6 +110,28 @@ class SoundProcessingModule(object):
             print("  Front Raw Max: %.4f" % max(np.abs(micFront)))
             print("  Front Raw Max: %.4f" % max(np.abs(micRear)))
 
+
+            mic_distance_lr = self.distance(self.mic_positions["Left"], self.mic_positions["Right"])
+            mic_distance_fr = self.distance(self.mic_positions["Front"], self.mic_positions["Rear"])
+            sample_rate = 48000  # entspricht deiner setClientPreferences()
+
+            angle_lr = self.estimate_direction(micLeft, micRight, mic_distance_lr, sample_rate)
+            angle_fr = self.estimate_direction(micFront, micRear, mic_distance_fr, sample_rate)
+
+            print("direction (Left-Right): %.1f°" % angle_lr)
+            print("direction (Front-Rear): %.1f°" % angle_fr)
+
+            azimut_rad = math.radians(angle_lr)
+            elevation_rad = math.radians(angle_fr)
+
+            x = math.cos(elevation_rad) * math.cos(azimut_rad)
+            y = math.cos(elevation_rad) * math.sin(azimut_rad)  
+
+            # Gesamtwinkel (z. B. für Richtung in 2D)
+            gesamtwinkel = math.degrees(math.atan2(y, x))
+
+            print(f"sound source is coming at a {gesamtwinkel:.1f}° angle from NAO (0/360 is right, 180 is left, 90 is front, 270 is rear)")
+
         else:
             self.isProcessingDone = True
 
@@ -136,6 +166,20 @@ class SoundProcessingModule(object):
 
         return signedData
 
+    def estimate_direction(self, mic1, mic2, mic_distance, sample_rate):
+        corr = np.correlate(mic1, mic2, mode='full')
+        lag = np.argmax(corr) - (len(mic1) - 1)
+        time_diff = lag / float(sample_rate)
+        try:
+            angle = math.degrees(math.asin((time_diff * 343.0) / mic_distance))
+        except ValueError:
+            angle = 0.0  # asin schluckt manchmal NaN bei zu großen Werten
+        return angle
+    
+    def distance(self, mic1, mic2):
+        x1, y1, z1 = mic1
+        x2, y2, z2 = mic2
+        return math.sqrt((x2 - x1)**2 + (y2 - y1)**2 + (z2 - z1)**2)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
