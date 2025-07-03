@@ -28,11 +28,15 @@ class SoundProcessingModule(object):
         # Get the service ALAudioDevice.
         self.audio_service = session.service("ALAudioDevice")
         self.isProcessingDone = False
-        self.nbOfFramesToProcess = 20
+        self.nbOfFramesToProcess = 50
         self.framesCount=0
         self.micFront = []
         self.module_name = "SoundProcessingModule"
         self.micRear = []
+        self.micRight = []
+        self.micLeft = []
+        self.invalid = False
+        self.startTime = time.time()
 
         self.mic_positions = {
             "Front":  (0.041, 0.0, 0.0915),
@@ -56,7 +60,7 @@ class SoundProcessingModule(object):
         self.audio_service.subscribe(self.module_name)
 
         # test if all 4 mic are even activated (should look like this ['FrontLeft', 'FrontRight', 'RearLeft', 'RearRight'] )
-        self.audio_service.getMicrophones()         
+        #self.audio_service.getMicrophones()         
         self.audio_service.getOutputVolume()
 
 
@@ -81,56 +85,77 @@ class SoundProcessingModule(object):
             micFront = audioData[2::4]
             micRear  = audioData[3::4]
 
+            self.invalid = False
+
             # using timestamp to check the audio latency (time between him hearing something to calc and output of that rms)
-            captureTime = timeStamp[0] + timeStamp[1] / 1e6
-            currentTime = time.time()
+            captureTime = (timeStamp[0] + timeStamp[1]) / 1e9
+            currentTime = time.time() / 1e9
             latency = currentTime - captureTime
-            print("Audio-latency: %.3f seconds" % latency)
+            #print("Audio-latency: %.3f seconds" % latency)
 
             # to see how many channels are used
-            print("Channels:", nbOfChannels)
-            print("Samples per channel:", nbOfSamplesByChannel)
-            print("InputBuffer lenght:", len(inputBuffer))
+            #print("Channels:", nbOfChannels)
+            #print("Samples per channel:", nbOfSamplesByChannel)
+            #print("InputBuffer lenght:", len(inputBuffer))
 
             # RMS in db per channel
-            print("  Left  RMS: %.2f dB" % self.calcRMSLevel(micLeft))
-            print("  Right RMS: %.2f dB" % self.calcRMSLevel(micRight))
-            print("  Front RMS: %.2f dB" % self.calcRMSLevel(micFront)) # somehow not working
-            print("  Rear  RMS: %.2f dB" % self.calcRMSLevel(micRear))  # somehow not working
+            #print("  Left  RMS: %.2f dB" % self.calcRMSLevel(micLeft))
+            #print("  Right RMS: %.2f dB" % self.calcRMSLevel(micRight))
+            #print("  Front RMS: %.2f dB" % self.calcRMSLevel(micFront)) # somehow not working
+            #print("  Rear  RMS: %.2f dB" % self.calcRMSLevel(micRear))  # somehow not working
 
+            """
             # RMS linear per channel
             print("  Left  RMS: %.2f dB" % self.calcLinearRMS(micLeft))
             print("  Right RMS: %.2f dB" % self.calcLinearRMS(micRight))
             print("  Front RMS: %.2f dB" % self.calcLinearRMS(micFront)) # somehow not working
             print("  Rear  RMS: %.2f dB" % self.calcLinearRMS(micRear))  # somehow not working
+            """
 
             # testing if there is even raw inout in mic (raw input no rms calc)
-            print("  Front Raw Max: %.4f" % max(np.abs(micLeft)))
-            print("  Front Raw Max: %.4f" % max(np.abs(micRight)))
-            print("  Front Raw Max: %.4f" % max(np.abs(micFront)))
-            print("  Front Raw Max: %.4f" % max(np.abs(micRear)))
+            #print("  Left Raw Max: %.4f" % max(np.abs(micLeft)))
+            #print("  Right Raw Max: %.4f" % max(np.abs(micRight)))
+            #print("  Front Raw Max: %.4f" % max(np.abs(micFront)))
+            #print("  Front Raw Max: %.4f" % max(np.abs(micRear)))
 
 
             mic_distance_lr = self.distance(self.mic_positions["Left"], self.mic_positions["Right"])
             mic_distance_fr = self.distance(self.mic_positions["Front"], self.mic_positions["Rear"])
             sample_rate = 48000  # entspricht deiner setClientPreferences()
 
-            angle_lr = self.estimate_direction(micLeft, micRight, mic_distance_lr, sample_rate)
-            angle_fr = self.estimate_direction(micFront, micRear, mic_distance_fr, sample_rate)
+            #angle_lr = self.estimate_direction(micLeft, micRight, mic_distance_lr, sample_rate)
+            #angle_fr = self.estimate_direction(micFront, micRear, mic_distance_fr, sample_rate)
 
-            print("direction (Left-Right): %.1f°" % angle_lr)
-            print("direction (Front-Rear): %.1f°" % angle_fr)
+            #print("direction (Left-Right): %.1f degrees" % angle_lr)
+            #print("direction (Front-Rear): %.1f degrees" % angle_fr)
 
-            azimut_rad = math.radians(angle_lr)
-            elevation_rad = math.radians(angle_fr)
+            #azimut_rad = math.radians(angle_lr)
+            #elevation_rad = math.radians(angle_fr)
 
-            x = math.cos(elevation_rad) * math.cos(azimut_rad)
-            y = math.cos(elevation_rad) * math.sin(azimut_rad)  
+            #x = math.cos(elevation_rad) * math.cos(azimut_rad)
+            #y = math.cos(elevation_rad) * math.sin(azimut_rad)  
 
             # Gesamtwinkel (z. B. für Richtung in 2D)
-            gesamtwinkel = math.degrees(math.atan2(y, x))
+            #gesamtwinkel = math.degrees(math.atan2(y, x))
 
-            print(f"sound source is coming at a {gesamtwinkel:.1f} degree angle from NAO (0/360 is right, 180 is left, 90 is front, 270 is rear)")
+            """if ( degree < 0):
+                gesamtwinkel = degree + 360
+            """
+
+            #print("sound source is coming at a %.2f degree angle from NAO (0/360 is right, 180 is left, 90 is front, 270 is rear)" % gesamtwinkel) 
+
+            frameTime = time.time() - self.startTime
+
+            tau = self.gcc_phat(micLeft, micRight, fs=sample_rate)
+            angle_lr = self.angle_from_tdoa(tau, mic_distance_lr)
+            if (self.invalid == False):   
+                print("Frame : %.0f________________________________" % self.framesCount)
+            if (self.invalid == False):
+                print("  Left  RMS: %.2f dB" % self.calcRMSLevel(micLeft))
+                print("  Right RMS: %.2f dB" % self.calcRMSLevel(micRight))
+            if (self.invalid == False):
+                print("  Sound source angle: %f" % angle_lr)
+                print("  Timestamp: %.2f seconds" % frameTime)
 
         else:
             self.isProcessingDone = True
@@ -166,6 +191,7 @@ class SoundProcessingModule(object):
 
         return signedData
 
+    
     def estimate_direction(self, mic1, mic2, mic_distance, sample_rate):
         corr = np.correlate(mic1, mic2, mode='full')
         lag = np.argmax(corr) - (len(mic1) - 1)
@@ -176,6 +202,31 @@ class SoundProcessingModule(object):
             angle = 0.0  # asin schluckt manchmal NaN bei zu großen Werten
         return angle
     
+
+    def gcc_phat(self, sig1, sig2, fs, max_tau=None, interp=16):
+        n = len(sig1) + len(sig2)
+        SIG1 = np.fft.rfft(sig1, n=n)
+        SIG2 = np.fft.rfft(sig2, n=n)
+        R = SIG1 * np.conj(SIG2)
+        R /= np.abs(R) + 1e-15  # PHAT weighting
+        cc = np.fft.irfft(R, n=(interp * n))
+        max_shift = int(interp * n / 2)
+        if max_tau:
+            max_shift = np.minimum(int(interp * fs * max_tau), max_shift)
+        cc = np.concatenate((cc[-max_shift:], cc[:max_shift+1]))
+        shift = np.argmax(np.abs(cc)) - max_shift
+        tau = shift / float(interp * fs)
+        return tau
+    
+    def angle_from_tdoa(self, tau, mic_distance):
+        try:
+            angle = math.degrees(math.asin(tau * 343.0 / mic_distance))
+        except ValueError:
+            angle = 0.0  # falls asin überläuft
+            #print("  Invalid Angle")
+            self.invalid = True
+        return angle
+
     def distance(self, mic1, mic2):
         x1, y1, z1 = mic1
         x2, y2, z2 = mic2
