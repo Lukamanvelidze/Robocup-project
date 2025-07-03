@@ -37,6 +37,7 @@ class SoundProcessingModule(object):
         self.micLeft = []
         self.invalid = False
         self.startTime = time.time()
+        self.angle_values = []
 
         self.mic_positions = {
             "Front":  (0.041, 0.0, 0.0915),
@@ -82,8 +83,8 @@ class SoundProcessingModule(object):
             # Split in einzelne Kanäle
             micLeft  = audioData[0::4]
             micRight = audioData[1::4]
-            micFront = audioData[2::4]
-            micRear  = audioData[3::4]
+            #micFront = audioData[2::4]
+            #micRear  = audioData[3::4]
 
             self.invalid = False
 
@@ -148,6 +149,15 @@ class SoundProcessingModule(object):
 
             tau = self.gcc_phat(micLeft, micRight, fs=sample_rate)
             angle_lr = self.angle_from_tdoa(tau, mic_distance_lr)
+
+            rms_left = self.calcLinearRMS(micLeft)
+            rms_right = self.calcLinearRMS(micRight)
+            loudness = (rms_left + rms_right) / 2.0  # lineare Lautstärke, kein dB
+
+            if not self.invalid:
+                self.angle_values.append((angle_lr, loudness))
+
+            """
             if (self.invalid == False):   
                 print("Frame : %.0f________________________________" % self.framesCount)
             if (self.invalid == False):
@@ -156,9 +166,32 @@ class SoundProcessingModule(object):
             if (self.invalid == False):
                 print("  Sound source angle: %f" % angle_lr)
                 print("  Timestamp: %.2f seconds" % frameTime)
+            """
 
         else:
             self.isProcessingDone = True
+
+            if self.angle_values:
+                sum_weighted = sum(angle * weight for angle, weight in self.angle_values)
+                total_weight = sum(weight for _, weight in self.angle_values)
+
+                if total_weight > 0:
+                    avg_angle = sum_weighted / total_weight
+                    print("\n rms-weighted average for %d Frames: %.1f degrees" %
+                        (len(self.angle_values), avg_angle))
+
+                    # Optionale Richtungserkennung
+                    if avg_angle > 10:
+                        richtung = "from right"
+                    elif avg_angle < -10:
+                        richtung = "from left"
+                    else:
+                        richtung = "front"
+                    print(" Approximately: %s" % richtung)
+                else:
+                    print(" No signals with good values (Weight. = 0).")
+            else:
+                print(" No valid Frames for Calculation")
 
     def calcRMSLevel(self, data):
         rms = np.sqrt(np.mean(np.square(data)))
@@ -170,26 +203,9 @@ class SoundProcessingModule(object):
     def calcLinearRMS(self, data):
         return np.sqrt(np.mean(np.square(data)))
 
-    def convertStr2SignedInt(self, data) :
-        """
-        This function takes a string containing 16 bits little endian sound
-        samples as input and returns a vector containing the 16 bits sound
-        samples values converted between -1 and 1.
-        """
-        signedData=[]
-        ind=0
-        for i in range (0,len(data)/2) :
-            signedData.append(data[ind]+data[ind+1]*256)
-            ind=ind+2
-
-        for i in range (0,len(signedData)) :
-            if signedData[i]>=32768 :
-                signedData[i]=signedData[i]-65536
-
-        for i in range (0,len(signedData)) :
-            signedData[i]=signedData[i]/32768.0
-
-        return signedData
+    def convertStr2SignedInt(self, data):
+        data_int16 = np.frombuffer(data, dtype=np.int16)
+        return data_int16.astype(np.float32) / 32768.0
 
     
     def estimate_direction(self, mic1, mic2, mic_distance, sample_rate):
