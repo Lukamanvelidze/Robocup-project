@@ -30,7 +30,12 @@ def handle_client(conn):
             wf.setframerate(16000)
             wf.writeframes(data)
 
-        result = model.transcribe(tmpfile.name)
+        result = model.transcribe(tmpfile.name,language="en")
+        for segment in result["segments"]:
+            start = segment["start"]
+            end = segment["end"]
+            text=segment["text"]
+            print(f"[{start:.2f}-{end:.2f}: {text}")
 
     # Send transcription back
     transcription = result["text"].encode('utf-8')
