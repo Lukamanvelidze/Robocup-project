@@ -35,18 +35,18 @@ if __name__ == "__main__":
     for segment in data:
         start = segment["start"]
         end = segment["end"]
-        text = segment["text"]          
+        
 
                 
-    max_attempt = 3
+    max_attempt = 2
     attempt = 0
     #recog = False
     word = "Polo"
 
     while attempt < max_attempt: # or while goal not reach
         print("Recognized words:", module.recognized_words)
-        #if goal reach
-        #break
+        #if goal reach:
+            #break
         
         if word in module.recognized_words:
             tts.say("Ligma")
@@ -58,6 +58,13 @@ if __name__ == "__main__":
 
             # move.py function
             # after n sec of moving, recalibrate with tts->word_recog & sound local
+            
+            tts.say("Marco")
+            data = module.startProcessing()
+            for segment in data:
+                start = segment["start"]
+                end = segment["end"]
+            
             
         else if word not in module.recognized_words:
             attempt +=1
@@ -71,7 +78,7 @@ if __name__ == "__main__":
                 
             else:
                 time.sleep(2)
-                tts.say("Im done playing with you")
+                tts.say("Im done playing with you!")
 
 
 
