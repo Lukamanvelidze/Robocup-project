@@ -33,6 +33,9 @@ class SoundProcessingClient(object):
         #self.audio_service.subscribe(self.module_name)
 
     def startProcessing(self):
+        
+        self.framesCount = 0
+        self.collected_samples = [[], [], [], []]
 
         self.audio_service.setClientPreferences(self.module_name, self.audio_rate, 0, 0)
 
