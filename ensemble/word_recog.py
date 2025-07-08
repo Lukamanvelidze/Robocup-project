@@ -47,7 +47,7 @@ class SoundProcessingClient(object):
         self.audio_service.unsubscribe(self.module_name)
 
         print("[INFO] Sending audio to server...")
-        self.sendAudioToServer()
+        return self.sendAudioToServer()
 
     def processRemote(self, nbOfChannels, nbOfSamplesByChannel, timeStamp, inputBuffer):
         #print("[DEBUG] processRemote called")
@@ -138,10 +138,18 @@ class SoundProcessingClient(object):
             trans_length_bytes = self.recvall(sock, 4)
             trans_length = self.bytes_to_int(trans_length_bytes)
             transcription_bytes = self.recvall(sock, trans_length)
-            transcription_text = transcription_bytes.decode('utf-8')
+            transcription_text = json.loads(transcription_bytes.decode('utf-8'))
 
-            print("[INFO] Transcription received from server:", transcription_text)
-            self.recognized_words = transcription_text.strip().split()
+            print("[INFO] Transcription received from server:")
+            for segment in transcription_text:
+                start = segment["start"]
+                end = segment["end"]
+                text = segment["text"]
+                print(f"[{start:.2f} - {end:.2f}]")
+
+            full_text = " ".join([segment["text"] for segment in segments])
+            self.recognized_words = full_text.strip().split()
+            return transcription_text
 
         except Exception as e:
             print("[ERROR] Failed to communicate with server:", e)

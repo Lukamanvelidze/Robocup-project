@@ -31,14 +31,19 @@ if __name__ == "__main__":
     module = SoundProcessingClient(app, args.server_ip, args.server_port)
     print("connect to server")
     print("start recording")
-    module.startProcessing()
+    data = module.startProcessing()
+    for segment in data:
+        start = segment["start"]
+        end = segment["end"]
+        text = segment["text"]          
 
+                
     max_attempt = 3
     attempt = 0
     #recog = False
     word = "Polo"
 
-    while attempt < max_attempt:
+    while attempt < max_attempt: # or while goal not reach
         print("Recognized words:", module.recognized_words)
         #if goal reach
         #break
@@ -47,15 +52,23 @@ if __name__ == "__main__":
             tts.say("Ligma")
             #recog = True
             attempt = 0
-            #move.py function
-            # after 5 
+
+            # use start and end frames (in second) for sound localization 
+            # determine the direction -> feed it to move.py function
+
+            # move.py function
+            # after n sec of moving, recalibrate with tts->word_recog & sound local
             
-        if word not in module.recognized_words:
+        else if word not in module.recognized_words:
             attempt +=1
             if attempt<max_attempt:
                 time.sleep(2)
                 tts.say("Marco")
-                module.startProcessing()
+                data = module.startProcessing()
+                for segment in data:
+                    start = segment["start"]
+                    end = segment["end"]
+                
             else:
                 time.sleep(2)
                 tts.say("Im done playing with you")
