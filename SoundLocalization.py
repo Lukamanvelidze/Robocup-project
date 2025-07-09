@@ -1,0 +1,157 @@
+# -*- coding: utf-8 -*-
+import qi
+import sys
+import time
+import argparse
+import numpy as np
+import math
+
+class RawMicDataCollector(object):
+    def __init__(self, app):
+        super(RawMicDataCollector, self).__init__()
+        app.start()
+        self.session = app.session
+        self.audio_service = self.session.service("ALAudioDevice")
+        self.module_name = "RawMicDataCollector"
+
+        self.audio_rate = 16000
+        self.nb_frames_to_collect = 50
+        self.frames_count = 0
+
+        # Nur für die zwei Mikrofone 0 und 1
+        self.collected_samples = [[], []]
+
+        self.session.registerService(self.module_name, self)
+
+        self.mic_positions = {
+            "Left":   (-0.0195, 0.0606, 0.0331),
+            "Right":  (-0.0195, -0.0606, 0.0331)
+        }
+
+    def start(self):
+        print("[INFO] Start collecting raw data from mic 0 and 1...")
+
+        self.frames_count = 0
+        self.collected_samples = [[], []]
+
+        # Alle 4 Kanäle abgreifen, aber wir nehmen nur 0 und 1
+        self.audio_service.setClientPreferences(self.module_name, self.audio_rate, 0, 0)
+        self.audio_service.subscribe(self.module_name)
+
+        while self.frames_count < self.nb_frames_to_collect:
+            time.sleep(0.1)
+
+        self.audio_service.unsubscribe(self.module_name)
+        print("[INFO] Finished collecting audio frames.")
+
+        # Nach dem Sammeln aller Frames Winkel berechnen
+        angle = self.estimate_direction_gccphat(
+            self.collected_samples[0],
+            self.collected_samples[1],
+            sample_rate=16000,
+            frame_size=1600,
+            mic_distance=self.mic_distance(self.mic_positions["Left"], self.mic_positions["Right"])
+        )
+
+        print("Final recognized angle (only front assumed): " , angle , " degrees")
+
+    def processRemote(self, nb_channels, nb_samples_per_channel, time_stamp, input_buffer):
+        samples = self.convert_bytes_to_floats(input_buffer)
+        if self.frames_count < self.nb_frames_to_collect:
+            # Nur Mikrofon 0 und 1 rausfiltern
+            mic0_samples = samples[0::4]
+            mic1_samples = samples[1::4]
+            self.collected_samples[0].extend(mic0_samples)
+            self.collected_samples[1].extend(mic1_samples)
+
+            self.frames_count += 1
+            print("[DEBUG] Frame %f received", self.frames_count)
+
+    def convert_bytes_to_floats(self, data):
+        int16_data = np.frombuffer(data, dtype=np.int16)
+        float_data = int16_data.astype(np.float32) / 32768.0
+        return float_data.tolist()
+
+    def gcc_phat(self, sig1, sig2, fs, max_tau=None, interp=16):
+        n = len(sig1) + len(sig2)
+        nfft = 1 << (n-1).bit_length()
+
+        SIG1 = np.fft.fft(sig1, n=nfft)
+        SIG2 = np.fft.fft(sig2, n=nfft)
+        R = SIG1 * np.conj(SIG2)
+        R /= np.abs(R) + 1e-15  # PHAT weighting
+        cc = np.fft.irfft(R)
+        max_shift = int(min(max_tau * fs if max_tau else nfft // 2, nfft // 2))
+        cc = np.concatenate((cc[-max_shift:], cc[:max_shift+1]))
+
+        interp_len = len(cc) * interp
+        cc_interp = np.interp(np.linspace(0, len(cc)-1, interp_len), np.arange(len(cc)), cc)
+
+        shift = np.argmax(cc_interp) - interp_len // 2
+        tau = shift / float(interp * fs)
+
+        if max_tau and abs(tau) > max_tau:
+            return 0.0
+        return tau
+
+    def estimate_direction_gccphat(self, mic0_samples, mic1_samples, sample_rate=16000, frame_size=1600, mic_distance=0.12):
+        c = 343.0  # Schallgeschwindigkeit m/s
+        n_frames = min(len(mic0_samples), len(mic1_samples)) // frame_size
+
+        max_rms = 0
+        best_angle = 0
+
+        for i in range(n_frames):
+            start = i * frame_size
+            end = start + frame_size
+
+            frame0 = mic0_samples[start:end]
+            frame1 = mic1_samples[start:end]
+
+            # RMS Mittelwert aus beiden Mics (Stärke des Signals)
+            rms = (np.sqrt(np.mean(np.square(frame0))) + np.sqrt(np.mean(np.square(frame1)))) / 2
+            if rms < 0.01:  # zu leise -> ignorieren
+                continue
+
+            # Maximal erlaubte Verzögerung (max tau) = Abstand / Schallgeschwindigkeit + kleine Reserve
+            max_tau = mic_distance / c + 0.001
+
+            tau = self.gcc_phat(frame0, frame1, fs=sample_rate, max_tau=max_tau)
+            
+            # Winkel berechnen
+            ratio = tau * c / mic_distance
+            ratio = max(-1.0, min(1.0, ratio))  # absichern wegen asin-Domain
+            angle_rad = math.asin(ratio)
+            angle_deg = math.degrees(angle_rad)
+
+            # Nur wenn Signal stark ist, nehme Winkel mit maximaler Lautstärke
+            if rms > max_rms:
+                max_rms = rms
+                best_angle = angle_deg
+
+        return best_angle
+
+    def mic_distance(self, mic1, mic2):
+        x1, y1, z1 = mic1
+        x2, y2, z2 = mic2
+        return math.sqrt((x2 - x1)**2 + (y2 - y1)**2 + (z2 - z1)**2)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--ip", type=str, default="127.0.0.1", help="NAOqi IP")
+    parser.add_argument("--port", type=int, default=9559, help="NAOqi Port")
+    args = parser.parse_args()
+
+    try:
+        connection_url = f"tcp://{args.ip}:{args.port}"
+        app = qi.Application(["RawMicDataCollector", f"--qi-url={connection_url}"])
+    except RuntimeError:
+        print(f"Can't connect to Naoqi at ip {args.ip} on port {args.port}.")
+        sys.exit(1)
+
+    collector = RawMicDataCollector(app)
+    app.session.registerService("RawMicDataCollector", collector)
+    collector.start()
+
+    for i, samples in enumerate(collector.collected_samples):
+        print(f"Mic {i} collected {len(samples)} samples")
