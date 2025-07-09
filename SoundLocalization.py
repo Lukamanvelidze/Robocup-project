@@ -54,6 +54,7 @@ class RawMicDataCollector(object):
         )
 
         print("Final recognized angle (only front assumed): " , angle , " degrees")
+        self.move_head("192.168.1.118", 9559, angle)
 
     def processRemote(self, nb_channels, nb_samples_per_channel, time_stamp, input_buffer):
         samples = self.convert_bytes_to_floats(input_buffer)
@@ -65,7 +66,18 @@ class RawMicDataCollector(object):
             self.collected_samples[1].extend(mic1_samples)
 
             self.frames_count += 1
-            print("[DEBUG] Frame %f received", self.frames_count)
+            print("[DEBUG] Frame %f received" % self.frames_count)
+
+    def move_head(self, ip, port, angle):
+        session = qi.Session()
+        session.connect("tcp://" + ip + ":" + str(port))
+        motion = session.service("ALMotion")
+        names = ["HeadYaw" , "HeadPitch"]
+        angles = [angle, 0.0]
+        fractionMaySpeed = 0.2
+        motion.setAngles(names, angles, fractionMaySpeed)
+        time.sleep(2)
+        motion.setAngles(["HeadYaw","HeadPitch"], [0.0 , 0.0],0.2)
 
     def convert_bytes_to_floats(self, data):
         int16_data = np.frombuffer(data, dtype=np.int16)
@@ -146,7 +158,7 @@ if __name__ == "__main__":
         connection_url = f"tcp://{args.ip}:{args.port}"
         app = qi.Application(["RawMicDataCollector", f"--qi-url={connection_url}"])
     except RuntimeError:
-        print(f"Can't connect to Naoqi at ip {args.ip} on port {args.port}.")
+        print("Can't connect to Naoqi at ip ", args.ip, " on port ", args.port,".")
         sys.exit(1)
 
     collector = RawMicDataCollector(app)
@@ -154,4 +166,4 @@ if __name__ == "__main__":
     collector.start()
 
     for i, samples in enumerate(collector.collected_samples):
-        print(f"Mic {i} collected {len(samples)} samples")
+        print("Mic " ,i, " collected " ,len(samples), " samples")
