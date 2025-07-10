@@ -5,6 +5,7 @@ import time
 import argparse
 import numpy as np
 import math
+from naoqi import ALProxy
 
 class RawMicDataCollector(object):
     def __init__(self, app):
@@ -13,7 +14,7 @@ class RawMicDataCollector(object):
         self.session = app.session
         self.audio_service = self.session.service("ALAudioDevice")
         self.module_name = "RawMicDataCollector"
-
+        self.isProcessingDone = False
         self.audio_rate = 16000
         self.nb_frames_to_collect = 50
         self.frames_count = 0
@@ -38,7 +39,7 @@ class RawMicDataCollector(object):
         self.audio_service.setClientPreferences(self.module_name, self.audio_rate, 0, 0)
         self.audio_service.subscribe(self.module_name)
 
-        while self.frames_count < self.nb_frames_to_collect:
+        while self.isProcessingDone == False:
             time.sleep(0.1)
 
         self.audio_service.unsubscribe(self.module_name)
@@ -55,6 +56,8 @@ class RawMicDataCollector(object):
 
         print("Final recognized angle (only front assumed): " , angle , " degrees")
         self.move_head("192.168.1.118", 9559, angle)
+        time.sleep(5)
+        self.walk(self, "192.168.1.118", 9559, angle)
 
     def processRemote(self, nb_channels, nb_samples_per_channel, time_stamp, input_buffer):
         samples = self.convert_bytes_to_floats(input_buffer)
@@ -67,6 +70,38 @@ class RawMicDataCollector(object):
 
             self.frames_count += 1
             print("[DEBUG] Frame %f received" % self.frames_count)
+        else:
+            self.isProcessingDone = True
+
+    def walk(self, robotIP, PORT, angle):
+        motionProxy  = ALProxy("ALMotion", robotIP, PORT)
+        postureProxy = ALProxy("ALRobotPosture", robotIP, PORT)
+
+        # Wake up robot
+        motionProxy.wakeUp()
+
+        # Send robot to Pose Init
+        postureProxy.goToPosture("StandInit", 0.5)
+
+        # Example showing the moveTo command
+        # The units for this command are meters and radians
+        x  = 1          #that is forward
+        y  = 0          # this is right
+        #theta  = math.pi/2
+        angle = max(-90, min(90, angle))  # nur innerhalb ±90°
+        theta = math.radians(angle)
+        motionProxy.moveTo(x, y, theta)
+        # Will block until move Task is finished
+
+        ########
+        # NOTE #
+        ########
+        # If moveTo() method does nothing on the robot,
+        # read the section about walk protection in the
+        # Locomotion control overview page.
+
+        # Go to rest position
+        motionProxy.rest()
 
     def move_head(self, ip, port, angle):
         session = qi.Session()
