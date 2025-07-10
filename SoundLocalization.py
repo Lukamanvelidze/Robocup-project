@@ -73,6 +73,51 @@ class RawMicDataCollector(object):
         else:
             self.isProcessingDone = True
 
+    def sonar(robotIP):
+        PORT = 9559
+
+        # Create proxy to ALMemory
+        memoryProxy = ALProxy("ALMemory", robotIP, PORT)
+        # Create proxy to ALSonar
+        sonarProxy = ALProxy("ALSonar", robotIP, PORT)
+
+
+        # Subscribe to sonars, this will launch sonars (at hardware level)
+        # and start data acquisition.
+        sonarProxy.subscribe("myApplication")
+
+        SD = [0.0,0.0]
+        # Now you can retrieve sonar data from ALMemory.
+        # Get sonar left first echo (distance in meters to the first obstacle).
+        SL = memoryProxy.getData("Device/SubDeviceList/US/Left/Sensor/Value")
+
+        # Same thing for right.
+        SR = memoryProxy.getData("Device/SubDeviceList/US/Right/Sensor/Value")
+
+        # Unsubscribe from sonars, this will stop sonars (at hardware level)
+        sonarProxy.unsubscribe("myApplication")
+        return SD
+
+    # Please read Sonar ALMemory keys section
+    # if you want to know the other values you can get.
+
+    def get_gyro(robotIP):
+        PORT = 9559
+        Gyr = [0.0,0.0]
+        # Create proxy to ALMemory
+        try:
+            memoryProxy = ALProxy("ALMemory", robotIP, PORT)
+        except:
+            print ("Could not create proxy to ALMemory")
+
+        # Get the Gyrometers Values
+        GyrX = memoryProxy.getData("Device/SubDeviceList/InertialSensor/GyrX/Sensor/Value")
+        GyrY = memoryProxy.getData("Device/SubDeviceList/InertialSensor/GyrY/Sensor/Value")
+        print ("Gyrometers value X: %.3f, Y: %.3f" % (GyrX, GyrY))
+        Gyr[0] = GyrX
+        Gyr[1] = GyrY
+        return GyrX
+
     def walk(self, robotIP, PORT, angle):
         motionProxy  = ALProxy("ALMotion", robotIP, PORT)
         postureProxy = ALProxy("ALRobotPosture", robotIP, PORT)
@@ -99,6 +144,71 @@ class RawMicDataCollector(object):
         # If moveTo() method does nothing on the robot,
         # read the section about walk protection in the
         # Locomotion control overview page.
+
+        # Go to rest position
+        motionProxy.rest()
+
+    def walk_slow(robotIP, PORT=9559):
+
+        motionProxy  = ALProxy("ALMotion", robotIP, PORT)
+        postureProxy = ALProxy("ALRobotPosture", robotIP, PORT)
+
+        # Wake up robot
+        motionProxy.wakeUp()
+
+        # Send robot to Stand Init
+        postureProxy.goToPosture("StandInit", 0.5)
+
+        ###############################
+        # First we defined each step
+        ###############################
+        footStepsList = []
+
+        # 1) Step forward with your left foot
+        footStepsList.append([["LLeg"], [[0.06, 0.1, 0.0]]])
+
+        # 2) Sidestep to the left with your left foot
+        #footStepsList.append([["LLeg"], [[0.00, 0.16, 0.0]]])
+
+        # 3) Move your right foot to your left foot
+        footStepsList.append([["RLeg"], [[0.00, -0.1, 0.0]]])
+
+        # 4) Sidestep to the left with your left foot
+        #footStepsList.append([["LLeg"], [[0.00, 0.16, 0.0]]])
+
+        # 5) Step backward & left with your right foot
+        #footStepsList.append([["RLeg"], [[-0.04, -0.1, 0.0]]])
+
+        # 6)Step forward & right with your right foot
+        #footStepsList.append([["RLeg"], [[0.00, -0.16, 0.0]]])
+
+        # 7) Move your left foot to your right foot
+        #footStepsList.append([["LLeg"], [[0.00, 0.1, 0.0]]])
+
+        # 8) Sidestep to the right with your right foot
+        #footStepsList.append([["RLeg"], [[0.00, -0.16, 0.0]]])
+
+        ###############################
+        # Send Foot step
+        ###############################
+        stepFrequency = 0.8
+        clearExisting = False
+        nbStepDance = 2 # defined the number of cycle to make
+
+        for j in range( nbStepDance ):
+            for i in range( len(footStepsList) ):
+                try:
+                    motionProxy.setFootStepsWithSpeed(
+                        footStepsList[i][0],
+                        footStepsList[i][1],
+                        [stepFrequency],
+                        clearExisting)
+                except:
+                    print ("This example is not allowed on this robot.")
+                    exit()
+
+
+        motionProxy.waitUntilMoveIsFinished()
 
         # Go to rest position
         motionProxy.rest()
