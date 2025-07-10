@@ -33,9 +33,6 @@ class SoundProcessingClient(object):
         #self.audio_service.subscribe(self.module_name)
 
     def startProcessing(self):
-        
-        self.framesCount = 0
-        self.collected_samples = [[], [], [], []]
 
         self.audio_service.setClientPreferences(self.module_name, self.audio_rate, 0, 0)
 
@@ -191,31 +188,6 @@ if __name__ == "__main__":
     print("connect to server")
     print("start recording")
     module.startProcessing()
-
-    max_attempt = 3
-    attempt = 0
-    recog = False
-    word = "Polo"
-
-    while attempt < max_attempt:
-        print("Recognized words:", module.recognized_words)
-        if word in module.recognized_words:
-            tts.say("Ligma")
-            recog = True
-            break
-        else:
-            attempt +=1
-            if attempt<max_attempt:
-                time.sleep(2)
-                tts.say("Marco")
-                module.startProcessing()
-            else:
-                time.sleep(2)
-                tts.say("Im done playing with you")
-                
-            
-
-    """
     print("Recognized words:", module.recognized_words)
     if "Hi" in module.recognized_words:
         tts.say("Ligma")
@@ -226,7 +198,7 @@ if __name__ == "__main__":
         module.startProcessing()
         time.sleep(5)
         tts.say("I don't want to play anymore")
-    """
+    
 
 
         

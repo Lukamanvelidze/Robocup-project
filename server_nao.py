@@ -3,6 +3,7 @@ import tempfile
 import wave
 import numpy as np
 import whisper
+import json
 #run on python3.7
 HOST = '127.0.0.1'
 PORT = 65432
@@ -32,20 +33,23 @@ def handle_client(conn):
 
         result = model.transcribe(tmpfile.name,language="en")
 
-        segment_data = []
+        #segment_data = []
         for segment in result["segments"]:
             start = segment["start"]
             end = segment["end"]
             text=segment["text"]
             print(f"[{start:.2f}-{end:.2f}: {text}")
+            """
             segment_data.append({
                 "start":start,
                 "end":end,
                 "text":text
             })
+            """
 
     # Send transcription back
-    transcription = json.dumps(segment_data).encode('utf-8')
+    #transcription = json.dumps(segment_data).encode('utf-8')
+    transcription = result["text"].encode('utf-8')
     trans_len = len(transcription)
     conn.send(trans_len.to_bytes(4, byteorder='big'))
     conn.send(transcription)
