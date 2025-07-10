@@ -14,7 +14,9 @@ class RawMicDataCollector(object):
         self.session = app.session
         self.audio_service = self.session.service("ALAudioDevice")
         self.module_name = "RawMicDataCollector"
+
         self.isProcessingDone = False
+        
         self.audio_rate = 16000
         self.nb_frames_to_collect = 50
         self.frames_count = 0
