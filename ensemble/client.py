@@ -4,7 +4,7 @@ import qi
 
 from word_recog import *
 from move import *
-#import audio localization 
+from SoundLocalization import * # including walking already 
 
 from naoqi import ALProxy
 
@@ -16,12 +16,10 @@ if __name__ == "__main__":
     parser.add_argument("--server-port", type=int, default=65432, help="Whisper Server Port")
     args = parser.parse_args()
 
-    tts=ALProxy("ALTextToSpeech",args.ip,args.port)
-    moveMod = MoveClient(args.ip, args.port)
+    tts=ALProxy("ALTextToSpeech",args.ip,args.port)i
 
-    moveMod.posture_init()
-    #moveMod.rest()
-    #tts.say("Marco")
+    
+    
 
     try:
         connection_url = "tcp://" + args.ip + ":" + str(args.port)
@@ -30,11 +28,24 @@ if __name__ == "__main__":
         print("Can't connect to Naoqi.")
         sys.exit(1)
     print("connected to nao, now try to server")
-    module = SoundProcessingClient(app, args.server_ip, args.server_port)
+    module = SoundProcessingClient(app, args.server_ip, args.server_port) 
     print("connect to server")
     print("start recording")
     module.startProcessing()
-               
+    
+    #connect to sound localization
+    try:
+        connection_url = f"tcp://{args.ip}:{args.port}"
+        app = qi.Application(["RawMicDataCollector", f"--qi-url={connection_url}"])
+    except RuntimeError:
+        print("Can't connect to Naoqi at ip ", args.ip, " on port ", args.port,".")
+        sys.exit(1)
+
+    collector = RawMicDataCollector(app)
+    app.session.registerService("RawMicDataCollector", collector)
+    collector.start()
+
+
     max_attempt = 2
     attempt = 0
     word = "Hi"
@@ -71,27 +82,3 @@ if __name__ == "__main__":
 
 
 
-"""
-sound localization 
-
-need the franes from word recog
-
-then the direction of localization will be feed to move.py
-"""
-
-
-
-"""
-At start of programm, tts Marco
--> word_recog
-if Polo: 1
-else: 2
-
-1:
-move.py
-after move certrain distant
-tts -> word_recog
-
-2: reask in word_recog.py
-
-"""
