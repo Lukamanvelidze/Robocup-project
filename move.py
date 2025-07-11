@@ -41,7 +41,6 @@ class MoveClient(object):
         for j in range( n ):
             if (self.get_sensor_data(ip,PORT) == 0):
                 break
-            
             for i in range( len(footStepsList) ):
                 try:
                     self.motionProxy.setFootStepsWithSpeed(
