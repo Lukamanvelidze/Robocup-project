@@ -24,6 +24,8 @@ class MoveClient(object):
 
     # Walk only one step at a time so we can use sonar sensor to detect obstacles
     def walk_slow(self):
+        ip = "192.168.1.118"
+        PORT = 9559
         footStepsList = []
 
         # 1.Step left foot forward
@@ -37,6 +39,9 @@ class MoveClient(object):
         n = 2 # defined the number of cycle to make
 
         for j in range( n ):
+            if (self.get_sensor_data(ip,PORT) == 0):
+                break
+            
             for i in range( len(footStepsList) ):
                 try:
                     self.motionProxy.setFootStepsWithSpeed(
@@ -49,6 +54,32 @@ class MoveClient(object):
                     exit()
     
         self.motionProxy.waitUntilMoveIsFinished()
+
+    def get_sensor_data(self, ip, PORT):
+
+        memoryProxy = ALProxy("ALMemory", ip, PORT)
+        sonarProxy = ALProxy("ALSonar", ip, PORT)
+
+        sonarProxy.subscribe("myApplication")
+
+        Gyr = [0.0,0.0]
+        GyrX = memoryProxy.getData("Device/SubDeviceList/InertialSensor/GyrX/Sensor/Value")
+        GyrY = memoryProxy.getData("Device/SubDeviceList/InertialSensor/GyrY/Sensor/Value")
+        print ("Gyrometers value X: %.3f, Y: %.3f" % (GyrX, GyrY))
+        Gyr[0] = GyrX
+        Gyr[1] = GyrY
+        
+        SD = [0.0,0.0]
+        # Now you can retrieve sonar data from ALMemory.
+        # Get sonar left first echo (distance in meters to the first obstacle).
+        SD[0] = memoryProxy.getData("Device/SubDeviceList/US/Left/Sensor/Value")
+
+        # Same thing for right.
+        SD[1] = memoryProxy.getData("Device/SubDeviceList/US/Right/Sensor/Value")
+        print ("Sonar value L: %.3f, R: %.3f" % (SD[0], SD[1]))
+        # Unsubscribe from sonars, this will stop sonars (at hardware level)
+        sonarProxy.unsubscribe("myApplication")
+        return SD, Gyr
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
