@@ -2,7 +2,7 @@ import argparse
 import sys
 import qi
 import time
-from audioProcessor import *  # Merged class
+from audioProcessor import * 
 from move import *
 from naoqi import ALProxy
 
@@ -31,17 +31,17 @@ if __name__ == "__main__":
     attempt = 0
     target_word = "hey"
     tts.say("Marco")
-    stop = "Stop"
+    stop = "stop"
 
     while attempt < max_attempt:
-        print("[INFO] Starting audio processing cycle...")
+        print("Starting audio processing cycle...")
         recognized_words, angle = processor.start()
         normalized_words = [w.strip().lower().strip(".,!?\"") for w in recognized_words]
         
 
         print("Recognized words:", recognized_words)
         if target_word in normalized_words:
-            tts.say("Ligma")
+            tts.say("Here I come")
             attempt = 0
 
             angle = max(-90, min(90, angle))
@@ -64,13 +64,16 @@ if __name__ == "__main__":
             
 
             tts.say("Marco")
-        else:
+        elif target_word not in normalized_words:
             attempt += 1
             if attempt < max_attempt:
                 #print(f"[INFO] Attempt {attempt}, retrying after pause...")
                 time.sleep(2)
                 tts.say("Marco")
             else:
-                tts.say("Max attempts reached")
+                tts.say("I give up")
                 time.sleep(2)
                 moveMod.rest()
+        elif stop in normalized_words:
+            tts.say("Found you")
+            moveMod.rest()
