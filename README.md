@@ -24,10 +24,6 @@ The robot will detect when a human responds with the word **"Polo"**, determine 
 - **Goal**: Move the robot toward the sound source.
 - **Description**: Uses basic motion control to approach the estimated direction of the sound.
 
-###  Computer Vision
-- **Goal**: Identify the target using colored tape.
-- **Description**: Uses NAO's camera and computer vision (e.g., OpenCV) to detect the color-marked target and perform a pointing gesture(working version).
-
 ---
 
 ##  Technologies Used
