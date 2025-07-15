@@ -6,7 +6,7 @@ This project aims to make the NAO humanoid robot play the game **Marco Polo** in
 
 ## Project Overview
 
-The robot will detect when a human responds with the word **"Polo"**, determine the direction of the sound, move toward the target, and finally recognize a colored tape using computer vision to confirm the target's location and point at it.
+The robot will detect when a human responds with the word **"Polo"**, determine the direction of the sound, move toward the target, and finally stop after hearing a keyword "stop".
 
 ---
 
