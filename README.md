@@ -1,4 +1,4 @@
-## this file is meant for group memebers, final presentable version of the project can be found on the main branch
+## this branch and readme is meant only for group memebers, final presentable version of the project can be found on the main branch
 
 ## audio Processing + Whisper Speech Recognition
 
