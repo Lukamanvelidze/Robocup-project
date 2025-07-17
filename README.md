@@ -112,7 +112,21 @@ angle = self.estimate_direction_gccphat(mic0_samples, mic1_samples)
 - **Description**: Uses basic motion control to approach the estimated direction of the sound.
 
 ---
+### How to use:
 
+- After making sure that nao is working and importable, run the server_nao.py in the python 3.8+ environment to start the server
+
+```bash
+python3 server_nao.py
+```
+- Then run client.py from the client folder in the python 2.7 environment (which is the environment of the nao package) to start the game
+```bash
+python client.py --ip "ip of the robot"
+```
+- For further ip, server ip, port and server port adjustment you can check the flag of client.py by
+```bash
+python client.py --h
+```
 
 ### Limitations:
 - Unfortunately, the version of the robot we were working with had only two functioning microphones (Left and Right). Because of this, sound localization can only estimate the direction in 2D and cannot distinguish whether the sound is coming from the front or the back. Therefore, our robot assumes that the sound is coming from the front.
