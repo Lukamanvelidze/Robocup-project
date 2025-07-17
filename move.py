@@ -1,5 +1,5 @@
 # -*- encoding: UTF-8 -*-
-
+import sys
 import math
 import argparse
 from naoqi import ALProxy
@@ -9,6 +9,7 @@ class MoveClient(object):
         super(MoveClient,self).__init__()
         self.motionProxy = ALProxy("ALMotion", server_ip, server_port)
         self.postureProxy = ALProxy("ALRobotPosture", server_ip, server_port)
+
 
     def posture_init(self):
         self.motionProxy.wakeUp()
@@ -39,8 +40,8 @@ class MoveClient(object):
         n = 2 # defined the number of cycle to make
 
         for j in range( n ):
-            if (self.get_sensor_data(ip,PORT) == 0):
-                break
+            if (self.get_sensor_data(ip,PORT) < -1.50):
+                math.abs
             for i in range( len(footStepsList) ):
                 try:
                     self.motionProxy.setFootStepsWithSpeed(
@@ -57,9 +58,9 @@ class MoveClient(object):
     def get_sensor_data(self, ip, PORT):
 
         memoryProxy = ALProxy("ALMemory", ip, PORT)
-        sonarProxy = ALProxy("ALSonar", ip, PORT)
+        #sonarProxy = ALProxy("ALSonar", ip, PORT)
 
-        sonarProxy.subscribe("myApplication")
+        #sonarProxy.subscribe("myApplication")
 
         Gyr = [0.0,0.0]
         GyrX = memoryProxy.getData("Device/SubDeviceList/InertialSensor/GyrX/Sensor/Value")
@@ -68,17 +69,17 @@ class MoveClient(object):
         Gyr[0] = GyrX
         Gyr[1] = GyrY
         
-        SD = [0.0,0.0]
+        #SD = [0.0,0.0]
         # Now you can retrieve sonar data from ALMemory.
         # Get sonar left first echo (distance in meters to the first obstacle).
-        SD[0] = memoryProxy.getData("Device/SubDeviceList/US/Left/Sensor/Value")
+        #SD[0] = memoryProxy.getData("Device/SubDeviceList/US/Left/Sensor/Value")
 
         # Same thing for right.
-        SD[1] = memoryProxy.getData("Device/SubDeviceList/US/Right/Sensor/Value")
-        print ("Sonar value L: %.3f, R: %.3f" % (SD[0], SD[1]))
+        #SD[1] = memoryProxy.getData("Device/SubDeviceList/US/Right/Sensor/Value")
+        #print ("Sonar value L: %.3f, R: %.3f" % (SD[0], SD[1]))
         # Unsubscribe from sonars, this will stop sonars (at hardware level)
-        sonarProxy.unsubscribe("myApplication")
-        return SD, Gyr
+        #sonarProxy.unsubscribe("myApplication")
+        return Gyr
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -88,3 +89,17 @@ if __name__ == "__main__":
                         help="Robot port number")
 
     args = parser.parse_args()
+
+    try:
+        connection_url = "tcp://" + args.ip + ":" + str(args.port)
+        app = qi.Application(["RawMicDataCollector", "--qi-url=" + connection_url])
+    except RuntimeError:
+        print("Can't connect to Naoqi at ip ", args.ip, " on port ", args.port,".")
+        sys.exit(1)
+
+    Agent = MoveClient(app)
+    #app.session.registerService("RawMicDataCollector", collector)
+    Agent.posture_init()
+    Agent.moveTo(0,0,-45)
+    Agent.walk_slow()
+    Agent.rest()

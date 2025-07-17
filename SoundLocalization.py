@@ -31,7 +31,7 @@ class RawMicDataCollector(object):
 
     def start(self):
         print("[INFO] Start collecting raw data from mic 0 and 1...")
-
+        print(self.get_gyro("192.168.1.118"))
         self.frames_count = 0
         self.collected_samples = [[], []]
 
@@ -53,6 +53,8 @@ class RawMicDataCollector(object):
             frame_size=1600,
             mic_distance=self.mic_distance(self.mic_positions["Left"], self.mic_positions["Right"])
         )
+
+        print(self.get_gyro("192.168.1.118"))
 
         print("Final recognized angle (only front assumed): " , angle , " degrees")
         self.move_head("192.168.1.118", 9559, angle)
@@ -101,9 +103,9 @@ class RawMicDataCollector(object):
     # Please read Sonar ALMemory keys section
     # if you want to know the other values you can get.
 
-    def get_gyro(robotIP):
+    def get_gyro(self, robotIP):
         PORT = 9559
-        Gyr = [0.0,0.0]
+        #Gyr = [0.0,0.0]
         # Create proxy to ALMemory
         try:
             memoryProxy = ALProxy("ALMemory", robotIP, PORT)
@@ -111,12 +113,10 @@ class RawMicDataCollector(object):
             print ("Could not create proxy to ALMemory")
 
         # Get the Gyrometers Values
-        GyrX = memoryProxy.getData("Device/SubDeviceList/InertialSensor/GyrX/Sensor/Value")
-        GyrY = memoryProxy.getData("Device/SubDeviceList/InertialSensor/GyrY/Sensor/Value")
-        print ("Gyrometers value X: %.3f, Y: %.3f" % (GyrX, GyrY))
-        Gyr[0] = GyrX
-        Gyr[1] = GyrY
-        return GyrX
+        ##GyrX = memoryProxy("Device/SubDeviceList/InertialSensor/GyrX/Sensor/Value")
+        GyrY = memoryProxy.getData("Device/SubDeviceList/InertialSensor/AngleY/Sensor/Value")
+        print ("Gyrometers value Y: %.3f" % ( GyrY))
+        return GyrY
 
     def walk(self, robotIP, PORT, angle):
         motionProxy  = ALProxy("ALMotion", robotIP, PORT)
@@ -295,19 +295,22 @@ class RawMicDataCollector(object):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ip", type=str, default="127.0.0.1", help="NAOqi IP")
-    parser.add_argument("--port", type=int, default=9559, help="NAOqi Port")
+    parser.add_argument("--ip", type=str, default="192.168.1.118",
+                        help="Robot IP address. On robot or Local Naoqi: use '127.0.0.1'.")
+    parser.add_argument("--port", type=int, default=9559,
+                        help="Naoqi port number")
+
     args = parser.parse_args()
 
     try:
-        connection_url = f"tcp://{args.ip}:{args.port}"
-        app = qi.Application(["RawMicDataCollector", f"--qi-url={connection_url}"])
+        connection_url = "tcp://" + args.ip + ":" + str(args.port)
+        app = qi.Application(["RawMicDataCollector", "--qi-url=" + connection_url])
     except RuntimeError:
         print("Can't connect to Naoqi at ip ", args.ip, " on port ", args.port,".")
         sys.exit(1)
 
     collector = RawMicDataCollector(app)
-    app.session.registerService("RawMicDataCollector", collector)
+    #app.session.registerService("RawMicDataCollector", collector)
     collector.start()
 
     for i, samples in enumerate(collector.collected_samples):
