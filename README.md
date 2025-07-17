@@ -70,7 +70,7 @@ angle = self.estimate_direction_gccphat(mic0_samples, mic1_samples)
      Where:
      - τ = estimated delay
      - c = speed of sound (343 m/s)
-     - d = distance between microphones (calculated from 3D positions)
+     - d = distance between microphones (calculated from irl positions)
 5. **Best Frame Selection**: The frame with highest RMS is used for the final angle.
 
 ---
