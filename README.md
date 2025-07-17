@@ -78,7 +78,9 @@ angle = self.estimate_direction_gccphat(mic0_samples, mic1_samples)
 ###  Speech Recognition
 - **Goal**: Detect the keyword **"Polo"**.
 - **Description**: uses OpenAI whisper on local device  to trigger behavior once the keyword is detected.
-- #### Principle Behind the System
+
+  
+ #### Principle Behind the System
 
 1. **Recording**:
    - The robot uses the `ALAudioDevice` module to collect audio from its microphones.
