@@ -114,7 +114,7 @@ angle = self.estimate_direction_gccphat(mic0_samples, mic1_samples)
 ---
 ### How to use:
 
-- After making sure that nao is working and importable, run the server_nao.py in the python 3.8+ environment to start the server
+- After making sure that nao is working and importable, run the server_nao.py in server folder in the python 3.8+ environment to start the server
 
 ```bash
 python3 server_nao.py
