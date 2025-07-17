@@ -31,6 +31,5 @@ The robot will detect when a human responds with the word **"Polo"**, determine 
 - Naoqi
 - openCV
 - whisper
-- will add more later
 
 
